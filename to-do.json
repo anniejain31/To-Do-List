@@ -1,0 +1,73 @@
+// Import the necessary libraries and modules
+const express = require('express');
+const bodyParser = require('body-parser');
+const { MongoClient } = require('mongodb');
+
+// Set up the Express app
+const app = express();
+app.use(bodyParser.json());
+
+// Set up the MongoDB connection
+const client = new MongoClient('<your-mongodb-connection-string>', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+async function connect() {
+  await client.connect();
+  console.log('Connected to MongoDB');
+}
+
+connect();
+
+// Define the routes for the to-do list app
+app.get('/api/todos', async (req, res) => {
+  const todos = await client
+    .db('todos')
+    .collection('items')
+    .find()
+    .toArray();
+
+  res.json(todos);
+});
+
+app.post('/api/todos', async (req, res) => {
+  const { text } = req.body;
+  const result = await client
+    .db('todos')
+    .collection('items')
+    .insertOne({ text, done: false });
+
+  res.json(result.ops[0]);
+});
+
+app.put('/api/todos/:id', async (req, res) => {
+  const { id } = req.params;
+  const { done } = req.body;
+  const result = await client
+    .db('todos')
+    .collection('items')
+    .findOneAndUpdate(
+      { _id: new MongoClient.ObjectId(id) },
+      { $set: { done } },
+      { returnOriginal: false }
+    );
+
+  res.json(result.value);
+});
+
+app.delete('/api/todos/:id', async (req, res) => {
+  const { id } = req.params;
+  await client
+    .db('todos')
+    .collection('items')
+    .deleteOne({ _id: new MongoClient.ObjectId(id) });
+
+  res.sendStatus(204);
+});
+
+// Start the server
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+});
